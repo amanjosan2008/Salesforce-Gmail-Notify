@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-# Add Subject & Case# to Notification
+# Debug.log file more Details
+# Stuck in Loop on no Connection
+# SF Info changed or Not Print
+# If internet connection comes up, print it
 
-# https://<yoursalesforcehostname>/_ui/system/security/ResetApiTokenEdit?retURL=%2Fui%2Fsetup%2FSetup%3Fsetupid%3DPersonalInfo&setupid=ResetApiToken
-# https://avi.my.salesforce.com/_ui/system/security/ResetApiTokenEdit?retURL=%2Fui%2Fsetup%2FSetup%3Fsetupid%3DPersonalInfo&setupid=ResetApiToken
 from simple_salesforce import Salesforce
 import time, datetime
 import imaplib
@@ -10,17 +11,30 @@ import email, sys
 import re, os
 import socket
 import credential
+import traceback
 
-# Function to print Date
+# Enable Debug Logging
+def debug():
+    return False
+
+# Enable Flags assignment; This will change to IMAPLIB to Read/Write Mode
+def flags_enabled():
+    return True
+
+# Function to print date
 def date():
     Time = time.strftime("%I:%M %p", time.localtime())
     return Time
 
+# Check Internet connectivity
 def is_connected():
   try:
-    host = socket.gethostbyname("salesforce.com")
+    host = socket.gethostbyname("www.google.com")
+    s = socket.create_connection((host, 80), 2)
     return True
   except:
+    print(date()+ ': Error: Internet Connection down, Retrying after 60 seconds')
+    time.sleep(60)
     return False
 
 # SalesForce Case list dump
@@ -28,36 +42,57 @@ def sf():
     try:
         sf = Salesforce(username=credential.username, password=credential.password, security_token=credential.security_token)
     except:
-        print("Fatal: Invalid Credentials/Token; Exitting")
+        print(date()+ ': Fatal: Invalid Credentials/Token; Exitting')
         sys.exit()
     try:
         prt = sf.query_all("SELECT CaseNumber,Subject,IsClosed FROM Case WHERE OwnerId = '0050G00000AyfBz'")
-        print(date()+ ': Fetched results from SalesForce')
     except simple_salesforce.exceptions.SalesforceGeneralError:
-        print('Salesforce Error, retrying in 60 seconds.')
+        print(date()+ ': Salesforce Error, retrying in 60 seconds.')
         time.sleep(60)
         pass
     global CASES_LIST
     CASES_LIST = []
     for i in range(len(prt['records'])):
         CASES_LIST.append(str(prt['records'][i]['CaseNumber']))
-    print('Total Cases: '+str(len(CASES_LIST))+' => ' +str(CASES_LIST).strip('[]'))
 
 # Function to get & save latest MessID
 def id():
-    mail.select('inbox', readonly=True)
-    type, data = mail.search(None, '(UNSEEN)')
+    if flags_enabled():
+        mail.select('inbox', readonly=False)
+    else:
+        mail.select('inbox', readonly=True)
+    type, data = mail.search(None, '(ALL)')
     mail_ids = data[0]
     id_list = mail_ids.split()
     global b
     b = int(id_list[-1])
-    f = open('curr.ini','w')
-    f.write(str(b))
+
+# Current Mail Fetch Details
+def write_b():
+    if b > a:
+        f = open('curr.ini','w')
+        f.write(str(b))
+        if debug():
+            log('Write b='+str(b)+'\n')         # Debugging
+        f.close()
+    else:
+        print(date()+ ': Error: b < a')
+
+# Fetch Last Seen MessID
+def read_a():
+    f = open('curr.ini','r')
+    l = f.readlines()
+    global a
+    a = int(l[0])
     f.close()
+    print('Last processed MessID: '+str(a)+'\n')
 
 # Fetch new mails function
 def mymail():
-    for i in range(b, a, -1):
+    #for i in range(b, a, -1):
+    for i in range(a+1,b+1):
+        if debug():
+            log('Mail Function: a='+str(a)+' b='+str(b)+' i='+str(i)+'\n')             # Debugging
         typ, data = mail.fetch(str(i), '(RFC822)' )
 
         for response_part in data:
@@ -66,7 +101,6 @@ def mymail():
                 email_subject = msg['subject']
                 email_from = msg['from']
                 email_to = msg['to']
-                #print(msg.get_payload(decode=True))
                 date_tuple = email.utils.parsedate_tz(msg['Date'])
                 if date_tuple:
                     localdate = datetime.datetime.fromtimestamp(email.utils.mktime_tz(date_tuple))
@@ -80,35 +114,50 @@ def mymail():
                         except UnicodeDecodeError as u:
                             string = body.decode('ISO-8859-1')[0:200]
                         except:
-                            print("Exception: " +str(u))
-                            print(part.get_content_type())
+                            print('Exception: '+str(u))
+                            print('part.get_content_type = '+part.get_content_type()+'\n')
                             string = "0"
+                    else:
+                        string = "0"
                 try:
                     c = str(RAW_SUB[0].strip())
                     #try:
                     if c in CASES_LIST:
-                        print(local_date+ ': [' + str(i)+ '] Case: ' + c)
-                        print('From: ' + email_from)
-                        print('Subject: ' + email_subject + '\n')
-                        notify("Update", "Case Update", "blow")
-                    #elif 'New Case:' in msg:
+                        print('\n'+local_date+'['+str(i)+']Case:'+c+'\n'+'From   : '+email_from+'\n'+'Subject: '+email_subject+'\n')
+                        notify('Case Update', 'Case# '+c+': '+email_subject[0:30], 'blow')
+                        if flags_enabled():
+                            flags(i,"MyCase")
                     elif 'New Case:' in string:
-                        print(local_date+ ': ['+ str(i)+'] New Case in QUEUE - Case: ' + c)
+                        print(local_date+'['+str(i)+']New Case in QUEUE - Case: ' + c)
                         notify("New Case", "New Case in Queue", "purr")
-                    #elif re.search('\[JIRA\]\s\(AV-\d{5}', email_subject) & re.search('(a|A)man@avinetworks.com', email_to):
-                    #    print('Jira Update: '+re.search(r'AV-\d{5}', email_subject))
+                        if flags_enabled():
+                            flags(i,"")
                     else:
-                        print(local_date+ ': [' + str(i)+ '] Case: ' + c+'\n')
+                        print(local_date+ '['+str(i)+']Case:' + c)
+                        if flags_enabled():
+                            flags(i,"")
                 except TypeError:
                     if re.search('\[JIRA\]\s\(AV-\d{5}', email_subject):
                           if re.search('(a|A)man@avinetworks.com', email_to):
                               d = re.compile(r'AV-\d{5}')
-                              print(local_date+' ['+str(i)+']: Jira Update: '+d.findall(email_subject)[0]+'\n')
-                              notify("Jira", "Jira Update", "Sosumi")
+                              print('\n'+local_date+'['+str(i)+']Jira Update: '+d.findall(email_subject)[0]+'\n')
+                              notify("Jira Update", "Jira# "+d.findall(email_subject)[0]+':'+email_subject[0:30], "Sosumi")
+                              if flags_enabled():
+                                  flags(i,"MyJIRA")
                     else:
-                        print(local_date+ ': [' + str(i)+'] No Case ID\n')
-                        pass
-                #except IndexError:
+                        print(local_date+'['+str(i)+']No Case ID')
+                        if flags_enabled():
+                            flags(i,"")
+                        #pass
+
+# Function to assign Flags
+def flags(x,flag):
+    if flag:
+        mail.store(str(x), '+X-GM-LABELS', flag)
+    else:
+        pass
+    mail.store(str(x), '-FLAGS', '(\Seen)')
+    mail.expunge()
 
 # MacOS X Notify Function
 def notify(title, text, sound):
@@ -116,13 +165,11 @@ def notify(title, text, sound):
               osascript -e 'display notification "{}" with title "{}" sound name "{}"'
               """.format(text, title, sound))
 
-# Connect to SF:
-if is_connected():
-    sf()
-else:
-    print("Error: Internet Connection down, Retrying after 60 seconds.")
-    time.sleep(60)
-    is_connected()
+# Debug log file
+def log(text):
+    f = open('debug.log','a')
+    f.write(str(date())+': '+str(text))
+    f.close()
 
 # Email Credentails:
 ORG_EMAIL   = credential.ORG_EMAIL
@@ -130,50 +177,62 @@ FROM_EMAIL  = credential.FROM_EMAIL
 FROM_PWD    = credential.FROM_PWD
 SMTP_SERVER = "imap.gmail.com"
 
-mail = imaplib.IMAP4_SSL(SMTP_SERVER)
+# Connect to SF:
+while True:
+    if is_connected():
+        sf()
+        print(date()+ ': Fetched results from SalesForce\n'+'Total Cases: '+str(len(CASES_LIST))+' => ' +str(CASES_LIST).strip('[]'))
+        global mail
+        mail = imaplib.IMAP4_SSL(SMTP_SERVER)
+        try:
+            mail.login(FROM_EMAIL,FROM_PWD)
+            print(date()+ ': Connected to the Mail Server!')
+        except:
+            print(date()+ ': Unable to connect! Check Credentials')
+            sys.exit()
+        break
+    else:
+        #print(date()+ ': Error: Internet Connection down, Retrying after 60 seconds')
+        is_connected()
 
-try:
-    mail.login(FROM_EMAIL,FROM_PWD)
-    print(date()+ ': Connected to the Mail Server!')
-except:
-    print('Unable to connect! Check Credentials.')
-    sys.exit()
-
-# Fetch Last Seen MessID
-f = open('curr.ini','r')
-l = f.readlines()
-a = int(l[0])
-f.close()
-print('Last processed MessID: '+str(a)+'\n')
+read_a()
+d = 0
 
 # Main Loop
 while True:
-    try:
-        id()
-        if a != b:
-            mymail()
-            a = b
-        time.sleep(30)
-#    except TimeoutError:
-#        print('Internet Down')
-#        time.sleep(60)
-#    except Exception as e:
-#        print("Exception: "+str(e))
-#        time.sleep(60)
-#        continue
-    except KeyboardInterrupt:
-        mail.logout()
-        print("Process Killed by Keyboard")
-        sys.exit()
-    except imaplib.IMAP4.abort:
-        print("Socket Error: Internet might be down, Retrying in 60 seconds")
-        time.sleep(60)
+    d += 1
+    if is_connected():
+        try:
+            id()
+            if a != b:
+                if debug():
+                    log('Loop Values: a='+str(a)+' b='+str(b)+'\n')     # Debugging
+                mymail()
+                write_b()
+                a = b
+            time.sleep(60)
+        except KeyboardInterrupt:
+            mail.logout()
+            print("Process Killed by Keyboard")
+            sys.exit()
+        except imaplib.IMAP4.abort:
+            print(date()+ ': Socket Error: Internet might be down, Retrying in 60 seconds')
+            #time.sleep(60)
+            continue
+        except TimeoutError:
+            print(date()+ ': TimeoutError: Internet might be down, Retrying in 60 seconds')
+            #time.sleep(60)
+            continue
+        except:
+            traceback.print_exc()
+            #time.sleep(60)
+            continue
+    else:
+        print(date()+ ': Error: Internet Connection down, Retrying after 60 seconds')
         continue
-    except TimeoutError:
-        print("TimeoutError: Internet might be down, Retrying in 60 seconds")
-        time.sleep(60)
-        continue
-    except Exception as e:
-        print("Exception: "+str(e))
-        time.sleep(60)
-        continue
+        #time.sleep(60)
+    #print(d)
+    if d == 60:
+        sf()
+        print(date()+ ': SF info retreived: Total Cases: '+str(len(CASES_LIST)))
+        d = 0
