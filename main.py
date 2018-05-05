@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # Debug.log file more Details
-# Stuck in Loop error
+# Save Exceptions to Debug.log
+# Stuck in Loop error = > Monitor
 # If internet connection comes up, print it
-# SF Info changed or Not Print
 # Ignore My Comment added alert; not customer's
 
 from simple_salesforce import Salesforce
@@ -260,7 +260,7 @@ while True:
                 fetchmail()
                 write_b()
                 a = b
-            time.sleep(60)
+            time.sleep(30)
         else:
             print(date()+ ': Error: Internet Connection down, Retrying after 60 seconds')
             continue
