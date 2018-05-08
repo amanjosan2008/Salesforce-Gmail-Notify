@@ -1,5 +1,5 @@
 # Salesforce-Gmail-Notify
-Fetch case list from Salesforce &amp; Notify about any emails in Gmail using MacOS X or Slack
+Fetch case list from Salesforce &amp; Notify about any emails in Gmail using MacOS X Notifications or Slack Alerts.
 
 Installation:
 
