@@ -40,7 +40,7 @@ def is_connected():
     return True
   except:
     if en_log():
-        log('Error: Internet Connection down, Retrying after 60 seconds')
+        log('Error: Internet Connection down, Retrying after 60 seconds\n')
     time.sleep(60)
     return False
 
@@ -50,13 +50,13 @@ def sf():
         sf = Salesforce(username=credential.username, password=credential.password, security_token=credential.security_token)
     except:
         if en_log():
-            log('Fatal: Invalid Credentials/Token; Exitting'+'\n')
+            log('Fatal: Invalid Credentials/Token; Exitting\n')
         sys.exit()
     try:
         prt = sf.query_all("SELECT CaseNumber,Subject,IsClosed FROM Case WHERE OwnerId = '0050G00000AyfBz'")
     except simple_salesforce.exceptions.SalesforceGeneralError:
         if en_log():
-            log('Salesforce Error, retrying in 60 seconds.'+'\n')
+            log('Salesforce Error, retrying in 60 seconds\n')
         time.sleep(60)
         pass
     global CASES_LIST
@@ -80,28 +80,28 @@ def id():
         #e = True
     except imaplib.IMAP4.abort:
         if en_log():
-            log('Imaplib.IMAP4.abort Error: Retrying in 60 seconds'+'\n')
+            log('Imaplib.IMAP4.abort Error: Retrying in 60 seconds\n')
         time.sleep(60)
         mailbox()
         if en_log():
-            log('Re-connected to the Mail Server!'+'\n')
+            log('Re-connected to the Mail Server!\n')
         #e = False
         return
     except TimeoutError:
         if en_log():
-            log('TimeoutError: Retrying in 60 seconds'+'\n')
+            log('TimeoutError: Retrying in 60 seconds\n')
         time.sleep(60)
         #e = False
         return
     except OSError:
         if en_log():
-            log('OSError: Retrying in 60 seconds'+'\n')
+            log('OSError: Retrying in 60 seconds\n')
         time.sleep(60)
         #e = False
         return
     except BrokenPipeError:
         if en_log():
-            log('BrokenPipeError: Retrying in 60 seconds'+'\n')
+            log('BrokenPipeError: Retrying in 60 seconds\n')
         time.sleep(60)
         #e = False
         return
@@ -122,7 +122,7 @@ def write_b():
         f.close()
     else:
         if en_log():
-            log('Error: Rollback event occured, ignored'+'\n')
+            log('Error: Rollback event occured, ignored\n')
 
 # Fetch Last Seen MessID
 def read_a():
@@ -147,7 +147,7 @@ def fetchmail():
         for response_part in data:
             if isinstance(response_part, tuple):
                 msg = email.message_from_bytes(response_part[1])
-                email_subject = msg['subject']
+                email_subject = msg['subject'].replace("\r\n","")
                 email_from = msg['from']
                 email_to = msg['to']
                 if debug():
@@ -179,9 +179,9 @@ def fetchmail():
                     #try:
                     if c in CASES_LIST:
                         if en_log():
-                            log('\n'+local_date+'['+str(i)+']Case:'+c+'\n'+'From   : '+email_from+'\n'+'Subject: '+email_subject+'\n')
+                            log('\n'+local_date+'['+str(i)+']Case:'+c+'\nFrom   : '+email_from+'\nSubject: '+email_subject+'\n')
                         #slack(local_date+'['+str(i)+']Case:'+c+'\n'+'From   : '+email_from+'\n'+'Subject: '+email_subject, ':robot_face:')
-                        slack(local_date+' Case:'+c+'\n'+'From   : '+email_from+'\n'+'Subject: '+email_subject, ':robot_face:')
+                        slack(local_date+' Case:'+c+'\nFrom   : '+email_from+'\nSubject: '+email_subject, credential.pm, ':scroll:')
                         if mac():
                             notify('Case Update', 'Case# '+c+': '+email_subject[0:30], 'Case Update')
                         if flags_enabled():
@@ -194,7 +194,7 @@ def fetchmail():
                     elif 'New Case:' in string:
                         if en_log():
                             log(local_date+'['+str(i)+']New Case in QUEUE - Case: ' + c+'\n')
-                        slack(local_date+' New Case in QUEUE - Case: ' + c, ':robot_face:')
+                        slack(local_date+' New Case in Queue: ' + c+'\nSubject: '+email_subject, credential.channel, ':briefcase:')
                         if mac():
                             notify('New Case', 'New Case in Queue: '+ c, 'New Case')
                         if flags_enabled():
@@ -213,14 +213,14 @@ def fetchmail():
                               d = re.compile(r'AV-\d{5}')
                               if en_log():
                                   log('\n'+local_date+'['+str(i)+']Jira Update: '+d.findall(email_subject)[0]+'\n')
-                              slack(local_date+' Jira Update: '+d.findall(email_subject)[0], ':robot_face:')
+                              slack(local_date+' Jira Update: '+d.findall(email_subject)[0], credential.pm, ':newspaper:')
                               if mac():
                                   notify('Jira Update', 'Jira# '+d.findall(email_subject)[0]+':'+email_subject[0:30], 'Jira Update')
                               if flags_enabled():
                                   flags(i,"MyJIRA")
                     else:
                         if en_log():
-                            log(local_date+'['+str(i)+']No Case ID'+'\n')
+                            log(local_date+'['+str(i)+']No Case ID\n')
                         if flags_enabled():
                             flags(i,"")
                         #pass
@@ -236,7 +236,7 @@ def flags(x,flag):
         mail.expunge()
     except ConnectionResetError:
         if en_log():
-            log('ConnectionResetError: Retrying in 60 seconds'+'\n')
+            log('ConnectionResetError: Retrying in 60 seconds\n')
         time.sleep(60)
         return
 
@@ -245,10 +245,10 @@ def notify(title, text, say):
     os.system("""osascript -e 'display notification "{}" with title "{}"'; osascript -e 'say "{}"' """.format(text, title, say))
 
 # Slack Alerts
-def slack(message, icon):
+def slack(message, channel, icon):
     #token = credential.token
     sc = SlackClient(credential.token)
-    sc.api_call('chat.postMessage', channel=credential.channel, text=message, username='My PyBot', icon_emoji=icon)
+    sc.api_call('chat.postMessage', channel=channel, text=message, username='My PyBot', icon_emoji=icon)
 
 # Debug log file
 def log(text):
@@ -280,7 +280,7 @@ def mailbox():
         mail.login(EMAIL_ID,FROM_PWD)
     except:
         if en_log():
-            log('Unable to connect! Check Credentials'+'\n')
+            log('Unable to connect! Check Credentials\n')
         sys.exit()
 
 # Connect to SF:
@@ -291,7 +291,7 @@ while True:
             log('Fetched results from SalesForce\n'+'Total Cases: '+str(len(CASES_LIST))+' => ' +str(CASES_LIST).strip('[]')+'\n')
         mailbox()
         if en_log():
-            log('Connected to the Mail Server!'+'\n')
+            log('Connected to the Mail Server!\n')
         break
     else:
         #print('Error: Internet Connection down, Retrying after 60 seconds')
@@ -321,13 +321,13 @@ while True:
             time.sleep(30)
         else:
             if en_log():
-                log('Error: Internet Connection down, Retrying after 60 seconds'+'\n')
+                log('Error: Internet Connection down, Retrying after 60 seconds\n')
             continue
             time.sleep(60)
     except KeyboardInterrupt:
         mail.logout()
         if en_log():
-            log('Process Killed by Keyboard'+'\n')
+            log('Process Killed by Keyboard\n')
         sys.exit()
     except:
         traceback.print_exc()
