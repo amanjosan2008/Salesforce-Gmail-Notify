@@ -12,3 +12,8 @@ security_token='NSUgqlsdsfgerhvdsvVbwjs'
 ORG_EMAIL= "@gmail.com"
 FROM_EMAIL= "someone@gmail.com"
 FROM_PWD= 'blablablabla'
+
+# Slack Credentials
+token='xoxp-343554354-30915543575-3595333110-95d5978ecda23553g3r342822'
+channel='support-group'
+pm='@aman'
