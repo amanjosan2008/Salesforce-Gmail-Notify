@@ -17,3 +17,6 @@ FROM_PWD= 'blablablabla'
 token='xoxp-343554354-30915543575-3595333110-95d5978ecda23553g3r342822'
 channel='support-group'
 pm='@aman'
+
+#Manually Added Cases to be monitored:
+CASE = [5700, 5217]
