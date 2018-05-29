@@ -1,3 +1,4 @@
+pi@amanpi:~/sf_mail_alert $ cat main.py
 #!/home/pi/berryconda3/bin/python3
 # Debug.log file more Details
 # Save Exceptions to Debug.log
@@ -63,6 +64,11 @@ def sf():
     CASES_LIST = []
     for i in range(len(prt['records'])):
         CASES_LIST.append(str(prt['records'][i]['CaseNumber']))
+    # Static Case list not assigned
+    s = credential.CASE
+    for j in s:
+        CASES_LIST.append(j)
+
 
 # Function to get & save latest MessID
 def id():
@@ -147,7 +153,8 @@ def fetchmail():
         for response_part in data:
             if isinstance(response_part, tuple):
                 msg = email.message_from_bytes(response_part[1])
-                email_subject = msg['subject'].replace("\r\n","")
+                em_subject = msg['subject'].replace("\r\n","")
+                email_subject = em_subject.split("- ref:")[0]
                 email_from = msg['from']
                 email_to = msg['to']
                 if debug():
@@ -179,9 +186,9 @@ def fetchmail():
                     #try:
                     if c in CASES_LIST:
                         if en_log():
-                            log('\n'+local_date+'['+str(i)+']Case:'+c+'\nFrom   : '+email_from+'\nSubject: '+email_subject+'\n')
+                            log(local_date+'['+str(i)+']Case:'+c+'\nFrom   : '+email_from+'\nSubject: '+email_subject+'\n')
                         #slack(local_date+'['+str(i)+']Case:'+c+'\n'+'From   : '+email_from+'\n'+'Subject: '+email_subject, ':robot_face:')
-                        slack(local_date+' Case:'+c+'\nFrom   : '+email_from+'\nSubject: '+email_subject, credential.pm, ':scroll:')
+                        slack(local_date+' - '+email_subject+' ('+email_from+')', credential.pm, ':scroll:')
                         if mac():
                             notify('Case Update', 'Case# '+c+': '+email_subject[0:30], 'Case Update')
                         if flags_enabled():
@@ -194,7 +201,7 @@ def fetchmail():
                     elif 'New Case:' in string:
                         if en_log():
                             log(local_date+'['+str(i)+']New Case in QUEUE - Case: ' + c+'\n')
-                        slack(local_date+' New Case in Queue: ' + c+'\nSubject: '+email_subject, credential.channel, ':briefcase:')
+                        slack(local_date+' New '+email_subject, credential.channel, ':briefcase:')
                         if mac():
                             notify('New Case', 'New Case in Queue: '+ c, 'New Case')
                         if flags_enabled():
@@ -207,7 +214,8 @@ def fetchmail():
                 except TypeError:
                 #except:
                     #traceback.print_exc()
-                    if re.search('\[JIRA\]\s\(AV-\d{5}', email_subject):
+                    #if re.search('\[JIRA\]\s\(AV-\d{5}', email_subject):
+                    if re.search('\[JIRA\].*AV-\d{5}', email_subject):
                           #if re.search('(a|A)man@avinetworks.com', email_to):
                           if re.search(EMAIL_ID, email_to):
                               d = re.compile(r'AV-\d{5}')
