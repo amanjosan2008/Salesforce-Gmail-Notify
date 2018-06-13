@@ -5,9 +5,13 @@ Installation:
 
  - Install Python3.6
  - Install Slack Client
-     pip3 install slackclient
+```sh
+pip3 install slackclient
+```
  - Install Salesforce API
-     pip3 install simple_salesforce
+```sh
+pip3 install simple_salesforce
+```
  - Update credentail.py
 
 To do:
