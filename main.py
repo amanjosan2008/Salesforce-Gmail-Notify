@@ -1,9 +1,4 @@
-pi@amanpi:~/sf_mail_alert $ cat main.py
 #!/home/pi/berryconda3/bin/python3
-# Debug.log file more Details
-# Save Exceptions to Debug.log
-# If internet connection comes up, print it
-# Ignore My Comment added alert; not customer's
 
 from simple_salesforce import Salesforce
 from slackclient import SlackClient
