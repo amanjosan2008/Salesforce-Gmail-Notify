@@ -60,9 +60,9 @@ def sf():
     for i in range(len(prt['records'])):
         CASES_LIST.append(str(prt['records'][i]['CaseNumber']))
     # Static Case list not assigned
-    s = credential.CASE
-    for j in s:
-        CASES_LIST.append(j)
+#    s = credential.CASE
+#    for j in s:
+#        CASES_LIST.append(j)
 
 
 # Function to get & save latest MessID
@@ -215,7 +215,7 @@ def fetchmail():
                           if re.search(EMAIL_ID, email_to):
                               d = re.compile(r'AV-\d{5}')
                               if en_log():
-                                  log('\n'+local_date+'['+str(i)+']Jira Update: '+d.findall(email_subject)[0]+'\n')
+                                  log(local_date+'['+str(i)+']Jira Update: '+d.findall(email_subject)[0]+'\n')
                               slack(local_date+' Jira Update: '+d.findall(email_subject)[0], credential.pm, ':newspaper:')
                               if mac():
                                   notify('Jira Update', 'Jira# '+d.findall(email_subject)[0]+':'+email_subject[0:30], 'Jira Update')
@@ -251,7 +251,7 @@ def notify(title, text, say):
 def slack(message, channel, icon):
     #token = credential.token
     sc = SlackClient(credential.token)
-    sc.api_call('chat.postMessage', channel=channel, text=message, username='My PyBot', icon_emoji=icon)
+    sc.api_call('chat.postMessage', channel=channel, text=message, username='SREBot', icon_emoji=icon)
 
 # Debug log file
 def log(text):
